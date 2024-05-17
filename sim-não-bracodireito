@@ -1,0 +1,180 @@
+//     Função bracoDireito:
+        Sobe o braço: Move o braço 90 graus no sentido horário (113 passos).
+        Espera: Pausa de 500 ms no topo.
+        Desce o braço: Move o braço de volta para a posição original (0 passos).
+
+    Loop Principal:
+        Verifica se o comando recebido é "BRACO" e chama a função bracoDireito() para mover o braço.
+
+Agora, ao enviar o comando "BRACO" via serial, o braço direito do robô subirá 90 graus e depois voltará para a posição original.
+
+//
+
+
+#include <Arduino.h>
+#include <AccelStepper.h>
+
+// Definições de pinos para o motor da cabeça
+#define STEP_PIN_CABECA 14
+#define DIR_PIN_CABECA 12
+
+// Definições de pinos para o motor do braço
+#define STEP_PIN_BRACO 16
+#define DIR_PIN_BRACO 17
+
+#define LED_BUILTIN 2
+
+// Criação dos objetos stepper para a cabeça e o braço
+AccelStepper stepperCabeca(1, STEP_PIN_CABECA, DIR_PIN_CABECA);
+AccelStepper stepperBraco(1, STEP_PIN_BRACO, DIR_PIN_BRACO);
+AccelStepper stepperBracoEsq(1, STEP_PIN_BRACOESQ, DIR_PIN_BRACOESQ);
+
+// Definição dos passos por graus
+const int passosPor90Graus = 113;
+const int passosPor60Graus = 75;
+const int passosPor120Graus = 150;
+
+void setup() {
+  // Inicia a comunicação serial com 115200 baud rate.
+  Serial.begin(115200);
+  
+  // Configura o pino do LED como saída
+  pinMode(LED_BUILTIN, OUTPUT);
+  
+  // Configurações iniciais do motor da cabeça
+  stepperCabeca.setMaxSpeed(1000);
+  stepperCabeca.setAcceleration(500);
+  
+  // Configurações iniciais do motor do braço
+  stepperBraco.setMaxSpeed(1000);
+  stepperBraco.setAcceleration(500);
+}
+
+void positivo() {
+  // Move para a posição inicial (90 graus)
+  stepperCabeca.moveTo(passosPor90Graus);
+  while (stepperCabeca.distanceToGo() != 0) {
+    stepperCabeca.run();
+  }
+  delay(100);
+
+  // Realiza o movimento de "sim" (balançando a cabeça)
+  for (int i = 0; i < 4; i++) {
+    // Move para 180 graus
+    stepperCabeca.moveTo(2 * passosPor90Graus);
+    while (stepperCabeca.distanceToGo() != 0) {
+      stepperCabeca.run();
+    }
+    delay(750);
+
+    // Move para 0 graus
+    stepperCabeca.moveTo(0);
+    while (stepperCabeca.distanceToGo() != 0) {
+      stepperCabeca.run();
+    }
+    delay(750);
+  }
+
+  // Volta para a posição inicial (90 graus)
+  stepperCabeca.moveTo(passosPor90Graus);
+  while (stepperCabeca.distanceToGo() != 0) {
+    stepperCabeca.run();
+  }
+  delay(100);
+}
+# o motor pode girar sem parar, que a cabeça vai ficar fazendo sim
+void negativo() {
+  // Move para a posição inicial (90 graus)
+  stepperCabeca.moveTo(passosPor90Graus);
+  while (stepperCabeca.distanceToGo() != 0) {
+    stepperCabeca.run();
+  }
+
+  for (int i = 0; i < 3; i++) {
+    // Move de 90 a 120 graus
+    for (int pos = passosPor90Graus; pos <= passosPor120Graus; pos += 3) {
+      stepperCabeca.moveTo(pos);
+      while (stepperCabeca.distanceToGo() != 0) {
+        stepperCabeca.run();
+      }
+      delay(50);
+    }
+
+    // Move de 120 a 60 graus
+    for (int pos = passosPor120Graus; pos >= passosPor60Graus; pos -= 3) {
+      stepperCabeca.moveTo(pos);
+      while (stepperCabeca.distanceToGo() != 0) {
+        stepperCabeca.run();
+      }
+      delay(50);
+    }
+
+    // Move de 60 a 90 graus
+    for (int pos = passosPor60Graus; pos <= passosPor90Graus; pos += 3) {
+      stepperCabeca.moveTo(pos);
+      while (stepperCabeca.distanceToGo() != 0) {
+        stepperCabeca.run();
+      }
+      delay(50);
+    }
+  }
+
+  // Volta para a posição inicial (90 graus)
+  stepperCabeca.moveTo(passosPor90Graus);
+  while (stepperCabeca.distanceToGo() != 0) {
+    stepperCabeca.run();
+  }
+}
+
+void bracoDireito() {
+  // Sobe o braço 90 graus (113 passos)
+  stepperBraco.moveTo(passosPor90Graus);
+  while (stepperBraco.distanceToGo() != 0) {
+    stepperBraco.run();
+  }
+  delay(500);  // Pausa de meio segundo no topo
+
+  // Volta o braço para a posição inicial
+  stepperBraco.moveTo(0);
+  while (stepperBraco.distanceToGo() != 0) {
+    stepperBraco.run();
+  }
+}
+
+void loop() {
+  // Verifica se há dados disponíveis para ler na porta serial.
+  if (Serial.available() > 0) {
+    // Lê a linha de dados recebida até encontrar um caractere de nova linha ('\n').
+    String received = Serial.readStringUntil('\n');
+    
+    // Imprime os dados recebidos no console serial para depuração.
+    Serial.print("Received: ");
+    Serial.println(received);
+
+    // Verifica os comandos recebidos
+    if (received == "HORARIO") {
+      stepperCabeca.moveTo(stepperCabeca.currentPosition() + passosPor90Graus);  // Move 113 passos no sentido horário
+      digitalWrite(LED_BUILTIN, HIGH);  // Acende o LED
+    } else if (received == "ANTIHORARIO") {
+      stepperCabeca.moveTo(stepperCabeca.currentPosition() - passosPor90Graus);  // Move 113 passos no sentido anti-horário
+      digitalWrite(LED_BUILTIN, HIGH);  // Acende o LED
+    } else if (received == "PARAR") {
+      stepperCabeca.stop();  // Para o motor
+      digitalWrite(LED_BUILTIN, LOW);  // Apaga o LED
+    } else if (received == "SIM") {
+      positivo();  // Realiza o movimento de "sim"
+    } else if (received == "NAO") {
+      negativo();  // Realiza o movimento de "não"
+    } else if (received == "BRACO") {
+      bracoDireito();  // Move o braço direito
+    } else {
+      stepperCabeca.stop();  // Para o motor da cabeça em qualquer comando não reconhecido
+      stepperBraco.stop();   // Para o motor do braço em qualquer comando não reconhecido
+      digitalWrite(LED_BUILTIN, LOW);  // Apaga o LED
+    }
+  }
+
+  // Executa os movimentos do motor até a posição desejada
+  stepperCabeca.run();
+  stepperBraco.run();
+}
